@@ -42,6 +42,10 @@ pub fn get_args() -> MyResult<Config> {
     let number_lines = matches.get_flag("number_lines");
     let number_nonblank_lines = matches.get_flag("number_nonblank_lines");
 
+    if number_lines && number_nonblank_lines {
+        Err("error: The argument '--number-nonblank' cannot be used with '--number'")?
+    }
+
     Ok(Config {
         files: matches.get_many("file").unwrap().cloned().collect(),
         number_lines: number_lines,
