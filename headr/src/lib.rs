@@ -1,4 +1,4 @@
-use std::error::Error;
+use std::{error::Error, fs::File, io::{self, BufRead, BufReader}};
 
 use clap::Parser;
 
@@ -22,6 +22,39 @@ pub fn get_args() -> MyResult<Config> {
 }
 
 pub fn run(config: Config) -> MyResult<()> {
-    println!("{:#?}", config);
+    let num_files = config.files.len();
+    // let num_lines = config.lines;
+    let num_bytes = config.bytes;
+
+    for (i, filename) in config.files.iter().enumerate() {
+        match open(&filename) {
+            Err(err) => eprintln!("{}: {}", filename, err),
+            Ok(mut reader) => {
+                if num_files > 1 {
+                    if i != 0 {
+                        println!();
+                    }
+                    println!("==> {filename} <==") 
+                }
+
+                let mut buffer = Vec::new();
+                _ = reader.read_to_end(&mut buffer)?;
+
+                if num_bytes != None {
+                    buffer.truncate(num_bytes.unwrap());
+                }
+
+                let s = String::from_utf8_lossy(&buffer);
+                print!("{s}");
+            },
+        }
+    }
     Ok(())
+}
+
+fn open(filename: &str) -> MyResult<Box<dyn BufRead>> {
+    match filename {
+        "-" => Ok(Box::new(BufReader::new(io::stdin()))),
+        _ => Ok(Box::new(BufReader::new(File::open(filename)?))),
+    }
 }
