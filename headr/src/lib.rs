@@ -66,7 +66,8 @@ fn read_first_n_lines(mut reader: Box<dyn BufRead>, num_lines: usize) -> MyResul
     while n < num_lines {
         let mut buf = String::new();
         _ = reader.read_line(&mut buf);
-        lines.push(buf);
+        lines.push(buf.clone());
+        buf.clear();
         n += 1;
     }
 
