@@ -1,4 +1,4 @@
-use std::{error::Error, fs::File, io::{self, BufRead, BufReader}};
+use std::{error::Error, fs::File, io::{self, BufRead, BufReader, Read}};
 
 use clap::Parser;
 
@@ -46,13 +46,12 @@ pub fn run(config: Config) -> MyResult<()> {
     Ok(())
 }
 
-fn read_first_n_bytes(mut reader: Box<dyn BufRead>, num_bytes: usize) -> MyResult<String> {
-    let mut buffer = Vec::new();
-    _ = reader.read_to_end(&mut buffer)?;
+fn read_first_n_bytes(reader: Box<dyn BufRead>, num_bytes: usize) -> MyResult<String> {
+    let mut handle = reader.take(num_bytes as u64);
+    let mut buffer = vec![0; num_bytes];
+    let bytes_read = handle.read(&mut buffer)?;
 
-    buffer.truncate(num_bytes);
-
-    return Ok(String::from_utf8_lossy(&buffer).to_string());
+    return Ok(String::from_utf8_lossy(&buffer[..bytes_read]).to_string());
 }
 
 fn read_first_n_lines(mut reader: Box<dyn BufRead>, num_lines: usize) -> MyResult<String> {
