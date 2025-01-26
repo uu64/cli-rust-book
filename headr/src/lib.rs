@@ -23,13 +23,13 @@ pub fn get_args() -> MyResult<Config> {
 
 pub fn run(config: Config) -> MyResult<()> {
     let num_files = config.files.len();
-    // let num_lines = config.lines;
+    let num_lines = config.lines;
     let num_bytes = config.bytes;
 
     for (i, filename) in config.files.iter().enumerate() {
         match open(&filename) {
             Err(err) => eprintln!("{}: {}", filename, err),
-            Ok(mut reader) => {
+            Ok(reader) => {
                 if num_files > 1 {
                     if i != 0 {
                         println!();
@@ -37,19 +37,40 @@ pub fn run(config: Config) -> MyResult<()> {
                     println!("==> {filename} <==") 
                 }
 
-                let mut buffer = Vec::new();
-                _ = reader.read_to_end(&mut buffer)?;
-
                 if num_bytes != None {
-                    buffer.truncate(num_bytes.unwrap());
+                    let out = read_first_n_bytes(reader, num_bytes.unwrap())?;
+                    print!("{out}");
+                } else  {
+                    let out = read_first_n_lines(reader, num_lines)?;
+                    print!("{out}");
                 }
-
-                let s = String::from_utf8_lossy(&buffer);
-                print!("{s}");
             },
         }
     }
     Ok(())
+}
+
+fn read_first_n_bytes(mut reader: Box<dyn BufRead>, num_bytes: usize) -> MyResult<String> {
+    let mut buffer = Vec::new();
+    _ = reader.read_to_end(&mut buffer)?;
+
+    buffer.truncate(num_bytes);
+
+    return Ok(String::from_utf8_lossy(&buffer).to_string());
+}
+
+fn read_first_n_lines(mut reader: Box<dyn BufRead>, num_lines: usize) -> MyResult<String> {
+    let mut lines = Vec::new();
+    let mut n = 0;
+
+    while n < num_lines {
+        let mut buf = String::new();
+        _ = reader.read_line(&mut buf);
+        lines.push(buf);
+        n += 1;
+    }
+
+    return Ok(lines.join(""));
 }
 
 fn open(filename: &str) -> MyResult<Box<dyn BufRead>> {
