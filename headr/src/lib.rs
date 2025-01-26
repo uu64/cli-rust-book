@@ -22,26 +22,22 @@ pub fn get_args() -> MyResult<Config> {
 }
 
 pub fn run(config: Config) -> MyResult<()> {
-    let num_files = config.files.len();
-    let num_lines = config.lines;
-    let num_bytes = config.bytes;
-
     for (i, filename) in config.files.iter().enumerate() {
         match open(&filename) {
             Err(err) => eprintln!("{}: {}", filename, err),
             Ok(reader) => {
-                if num_files > 1 {
+                if config.files.len() > 1 {
                     if i != 0 {
                         println!();
                     }
                     println!("==> {filename} <==") 
                 }
 
-                if num_bytes != None {
-                    let out = read_first_n_bytes(reader, num_bytes.unwrap())?;
+                if let Some(num_bytes) = config.bytes {
+                    let out = read_first_n_bytes(reader, num_bytes)?;
                     print!("{out}");
                 } else  {
-                    let out = read_first_n_lines(reader, num_lines)?;
+                    let out = read_first_n_lines(reader, config.lines)?;
                     print!("{out}");
                 }
             },
