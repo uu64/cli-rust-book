@@ -1,6 +1,8 @@
 use std::{error::Error, fs::File, io::{self, BufRead, BufReader, Read}};
 
 use clap::Parser;
+use regex::Regex;
+use thiserror::Error;
 
 type MyResult<T> = Result<T, Box<dyn Error>>;
 
@@ -12,7 +14,33 @@ pub struct Config {
     #[arg(short='n', long, default_value="10", conflicts_with("bytes"))]
     lines: usize,
     #[arg(short='c', long)]
-    bytes: Option<usize>,
+    bytes: Option<String>,
+}
+
+#[derive(Error, Debug)]
+pub enum CmdError {
+    #[error("illegal byte count -- {0}")]
+    IllegalByteCount(String),
+}
+
+
+impl Config {
+    fn num_bytes(&self) -> MyResult<Option<usize>> {
+        match self.bytes.clone() {
+            Some(num_bytes) => {
+                let re = Regex::new(r"^(?<num>[0-9]+)(?<unit>b|kB|K|MB|M|GB|G|KiB|MiB|GiB)?$").unwrap();
+                let Some(caps) = re.captures(num_bytes.as_str()) else {
+                    return Err(Box::new(CmdError::IllegalByteCount(num_bytes)));
+                };
+                let num = caps.name("num").map_or("", |m| m.as_str());
+                let unit = caps.name("unit").map_or("", |m| m.as_str());
+                println!("num: {}", num);
+                println!("unit: {}", unit);
+                return Ok(Some(num.parse().unwrap()));
+            }
+            None => return Ok(None)
+        }
+    }
 }
 
 pub fn get_args() -> MyResult<Config> {
@@ -33,7 +61,8 @@ pub fn run(config: Config) -> MyResult<()> {
                     println!("==> {filename} <==") 
                 }
 
-                if let Some(num_bytes) = config.bytes {
+                let num_bytes = config.num_bytes()?;
+                if let Some(num_bytes) = num_bytes {
                     let out = read_first_n_bytes(reader, num_bytes)?;
                     print!("{out}");
                 } else  {
