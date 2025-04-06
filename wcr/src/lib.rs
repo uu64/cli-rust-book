@@ -91,20 +91,29 @@ pub fn get_args() -> MyResult<Config> {
     Ok(config)
 }
 
+fn format_field(num: usize, show: bool) -> String {
+    if show {
+        format!("{:>8}", num)
+    } else {
+        "".to_string()
+    }
+}
+
 pub fn run(config: Config) -> MyResult<()> {
     let mut total_num_lines = 0;
     let mut total_num_words = 0;
     let mut total_num_bytes = 0;
     let mut total_num_chars = 0;
+
     for filename in &config.files {
         match open(filename) {
             Err(err) => eprintln!("{}: {}", filename, err),
             Ok(_) =>  {
                 let file_info = count(open(filename).unwrap())?;
-                let num_lines = if config.lines { format!("{:>8}", file_info.num_lines) } else { "".to_string() };
-                let num_words = if config.words { format!("{:>8}", file_info.num_words) } else { "".to_string() };
-                let num_bytes = if config.bytes { format!("{:>8}", file_info.num_bytes) } else { "".to_string() };
-                let num_chars = if config.chars { format!("{:>8}", file_info.num_chars) } else { "".to_string() };
+                let num_lines = format_field(file_info.num_lines, config.lines);
+                let num_words = format_field(file_info.num_words, config.words);
+                let num_bytes = format_field(file_info.num_bytes, config.bytes);
+                let num_chars = format_field(file_info.num_chars, config.chars);
                 let filename = if filename == "-" { "".to_string() } else { format!(" {filename}") };
                 println!("{num_lines}{num_words}{num_bytes}{num_chars}{filename}");
 
@@ -117,10 +126,10 @@ pub fn run(config: Config) -> MyResult<()> {
     }
 
     if config.files.len() > 1 {
-        let total_num_lines = if config.lines { format!("{:>8}", total_num_lines) } else { "".to_string() };
-        let total_num_words = if config.words { format!("{:>8}", total_num_words) } else { "".to_string() };
-        let total_num_bytes = if config.bytes { format!("{:>8}", total_num_bytes) } else { "".to_string() };
-        let total_num_chars = if config.chars { format!("{:>8}", total_num_chars) } else { "".to_string() };
+        let total_num_lines = format_field(total_num_lines, config.lines);
+        let total_num_words = format_field(total_num_words, config.words);
+        let total_num_bytes = format_field(total_num_bytes, config.bytes);
+        let total_num_chars = format_field(total_num_chars, config.chars);
         println!("{total_num_lines}{total_num_words}{total_num_bytes}{total_num_chars} total");
     }
     Ok(())
