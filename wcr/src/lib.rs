@@ -38,21 +38,19 @@ pub fn count(mut file: impl BufRead) -> MyResult<FileInfo> {
             // reached EOF
             break;
         }
-
         num_lines += 1;
         num_words += buf.split_ascii_whitespace().count();
         num_bytes += size;
         num_chars += buf.bytes().len();
-
         buf.clear();
     }
+
     Ok(FileInfo {
         num_lines,
         num_words,
         num_bytes,
         num_chars,
     })
-
 }
 
 #[cfg(test)]
@@ -94,14 +92,36 @@ pub fn get_args() -> MyResult<Config> {
 }
 
 pub fn run(config: Config) -> MyResult<()> {
+    let mut total_num_lines = 0;
+    let mut total_num_words = 0;
+    let mut total_num_bytes = 0;
+    let mut total_num_chars = 0;
     for filename in &config.files {
         match open(filename) {
             Err(err) => eprintln!("{}: {}", filename, err),
             Ok(_) =>  {
-                println!("Opened: {}", filename);
-                _ = count(open(filename).unwrap());
+                let file_info = count(open(filename).unwrap())?;
+                let num_lines = if config.lines { format!("{:>8}", file_info.num_lines) } else { "".to_string() };
+                let num_words = if config.words { format!("{:>8}", file_info.num_words) } else { "".to_string() };
+                let num_bytes = if config.bytes { format!("{:>8}", file_info.num_bytes) } else { "".to_string() };
+                let num_chars = if config.chars { format!("{:>8}", file_info.num_chars) } else { "".to_string() };
+                let filename = if filename == "-" { "".to_string() } else { format!(" {filename}") };
+                println!("{num_lines}{num_words}{num_bytes}{num_chars}{filename}");
+
+                total_num_lines += file_info.num_lines;
+                total_num_words += file_info.num_words;
+                total_num_bytes += file_info.num_bytes;
+                total_num_chars += file_info.num_chars;
             },
         }
+    }
+
+    if config.files.len() > 1 {
+        let total_num_lines = if config.lines { format!("{:>8}", total_num_lines) } else { "".to_string() };
+        let total_num_words = if config.words { format!("{:>8}", total_num_words) } else { "".to_string() };
+        let total_num_bytes = if config.bytes { format!("{:>8}", total_num_bytes) } else { "".to_string() };
+        let total_num_chars = if config.chars { format!("{:>8}", total_num_chars) } else { "".to_string() };
+        println!("{total_num_lines}{total_num_words}{total_num_bytes}{total_num_chars} total");
     }
     Ok(())
 }
