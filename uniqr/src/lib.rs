@@ -25,43 +25,47 @@ pub fn get_args() -> MyResult<Config> {
 }
 
 pub fn run(config: Config) -> MyResult<()> {
-    let file = open(&config.in_file)
-        .map_err(|e| format!("{}: {}", config.in_file, e))?;
-
-
-    let mut prev_line: Option<String> = None;
-    let mut line_count = 0;
-
     let mut writer: BufWriter<Box<dyn Write>> = match config.out_file {
         Some(ref out_file) => BufWriter::new(Box::new(fs::File::create(out_file)?)),
         None => BufWriter::new(Box::new(io::stdout())),
     };
 
-    let mut display = |line: &str, cnt: i32, conf: &Config| -> std::io::Result<()> {
+    let mut write = |line: &str, cnt: i32, conf: &Config| -> std::io::Result<()> {
         if conf.count {
             writer.write_all(format!("{:>4} ", cnt).as_bytes())?;
         }
-
-        writer.write_all(format!("{line}\n").as_bytes())?;
+        writer.write_all(line.as_bytes())?;
         Ok(())
     };
 
-    for line in file.lines() {
-        let current = line?;
+    let mut file = open(&config.in_file).map_err(|e| format!("{}: {}", config.in_file, e))?;
+    let mut line = String::new();
+    let mut line_count = 0;
+    let mut current: Option<String> = None;
 
-        if let Some(ref prev) = prev_line {
-            if *prev != current {
-                display(prev, line_count, &config)?;
+    loop {
+        let bytes = file.read_line(&mut line)?;
+
+        if let Some(ref cur) = current {
+            let newline_delimiters = ['\r', '\n'];
+            if cur.trim_end_matches(newline_delimiters) != line.trim_end_matches(newline_delimiters)
+                || bytes == 0
+            {
+                write(cur, line_count, &config)?;
                 line_count = 0;
+                current = Some(line.clone());
             }
+        } else {
+            // initialize
+            current = Some(line.clone());
         }
 
-        prev_line = Some(current);
-        line_count += 1;
-    }
+        if bytes == 0 {
+            break;
+        }
 
-    if let Some(ref prev) = prev_line {
-        display(prev, line_count, &config)?;
+        line_count += 1;
+        line.clear();
     }
 
     Ok(())
