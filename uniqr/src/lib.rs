@@ -1,7 +1,7 @@
 use std::{
     error::Error,
-    fs::File,
-    io::{self, BufRead, BufReader},
+    fs::{self, File},
+    io::{self, BufRead, BufReader, BufWriter, Write},
 };
 
 use clap::Parser;
@@ -25,28 +25,43 @@ pub fn get_args() -> MyResult<Config> {
 }
 
 pub fn run(config: Config) -> MyResult<()> {
-    let mut file = open(&config.in_file)
+    let file = open(&config.in_file)
         .map_err(|e| format!("{}: {}", config.in_file, e))?;
-    let mut line = String::new();
+
 
     let mut prev_line: Option<String> = None;
-    // let mut cnt = 0;
-    loop {
-        let bytes = file.read_line(&mut line)?;
+    let mut line_count = 0;
 
-        match prev_line {
-            Some(prev) if bytes == 0 || prev != line => {
-                print!("{}", prev);
-            },
-            _ => (), // do nothing
+    let mut writer: BufWriter<Box<dyn Write>> = match config.out_file {
+        Some(ref out_file) => BufWriter::new(Box::new(fs::File::create(out_file)?)),
+        None => BufWriter::new(Box::new(io::stdout())),
+    };
+
+    let mut display = |line: &str, cnt: i32, conf: &Config| -> std::io::Result<()> {
+        if conf.count {
+            writer.write_all(format!("{:>4} ", cnt).as_bytes())?;
         }
 
-        if bytes == 0 {
-            break;
+        writer.write_all(format!("{line}\n").as_bytes())?;
+        Ok(())
+    };
+
+    for line in file.lines() {
+        let current = line?;
+
+        if let Some(ref prev) = prev_line {
+            if *prev != current {
+                display(prev, line_count, &config)?;
+                line_count = 0;
+            }
         }
 
-        prev_line = Some(line.clone());
-        line.clear();
+        prev_line = Some(current);
+        line_count += 1;
+    }
+
+    if let Some(ref prev) = prev_line {
+        display(prev, line_count, &config)?;
     }
 
     Ok(())
