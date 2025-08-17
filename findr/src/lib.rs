@@ -83,7 +83,9 @@ pub fn run(config: Config) -> MyResult<()> {
             match entry {
                 Err(e) => eprintln!("{}", e),
                 Ok(entry) => {
-                    if is_match_entry_type(&entry, &config.entry_types) && is_match_name(&entry, &config.names) {
+                    if is_match_entry_type(&entry, &config.entry_types)
+                        && is_match_name(&entry, &config.names)
+                    {
                         println!("{}", entry.path().display())
                     }
                 }
