@@ -43,23 +43,31 @@ impl FromStr for PosRange {
     }
 }
 
+fn parse_delimiter(s: &str) -> Result<u8, String> {
+    let bytes = s.as_bytes();
+    if bytes.len() != 1 {
+        return Err(format!("--delim \"{}\" must be a single byte", s));
+    }
+    Ok(bytes[0])
+}
+
 #[derive(Args, Debug)]
-#[group(required = true, multiple = true)]
+#[group(required = true, multiple = false)]
 struct Extract {
+    #[arg(short, long, help="Selected fields")]
+    fields: Vec<PosRange>,
     #[arg(short, long, help="Selected bytes")]
     bytes: Vec<PosRange>,
     #[arg(short, long, help="Selected characters")]
     chars: Vec<PosRange>,
-    #[arg(short, long, help="Selected fields")]
-    fields: Vec<PosRange>,
 }
 
 #[derive(Debug, Parser)]
 pub struct Config {
     #[arg(value_name="FILE", default_value="-", help="Input file(s)")]
     files: Vec<String>,
-    #[arg(short, long, default_value_t=b'\t', help="Input file(s)")]
-    delimiter: u8,
+    #[arg(value_name="DELIMITER", short, long, default_value="\t", help="Input file(s)", value_parser=parse_delimiter)]
+    delim: u8,
     #[command(flatten)]
     extract: Extract,
 }
@@ -71,8 +79,21 @@ pub fn get_args() -> MyResult<Config> {
 
 pub fn run(config:Config) -> MyResult<()> {
     println!("{:#?}", &config);
+    // for file in config.files {
+    //     match &file[..] {
+    //         "-" => process_file(&mut std::io::stdin(), file.as_str())?,
+    //         _ => {
+    //             let f = std::fs::file::open(file)?;
+    //             process_file(&mut std::io::bufreader::new(f), file.as_str())?
+    //         }
+    //     }
+    // }
     Ok(())
 }
+
+// fn process_file(f: &mut dyn std::io::Read, filename: &str) -> MyResult<()> {
+//     Ok(())
+// }
 
 #[cfg(test)]
 mod unit_tests {
