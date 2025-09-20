@@ -46,20 +46,20 @@ impl FromStr for PosRange {
 #[derive(Args, Debug)]
 #[group(required = true, multiple = true)]
 struct Extract {
-    #[arg(short, long)]
-    fields: Vec<PosRange>,
-    #[arg(short, long)]
+    #[arg(short, long, help="Selected bytes")]
     bytes: Vec<PosRange>,
-    #[arg(short, long)]
+    #[arg(short, long, help="Selected characters")]
     chars: Vec<PosRange>,
+    #[arg(short, long, help="Selected fields")]
+    fields: Vec<PosRange>,
 }
 
 #[derive(Debug, Parser)]
 pub struct Config {
-    #[arg(default_value = "-", help = "Input file(s)")]
+    #[arg(value_name="FILE", default_value="-", help="Input file(s)")]
     files: Vec<String>,
-    // #[arg(default_value = ';', help = "Input file(s)")]
-    // delimiter: u8,
+    #[arg(short, long, default_value_t=b'\t', help="Input file(s)")]
+    delimiter: u8,
     #[command(flatten)]
     extract: Extract,
 }
