@@ -80,9 +80,26 @@ pub fn run(config:Config) -> MyResult<()> {
     for filename in &config.files {
         match open(filename) {
             Err(err) => eprintln!("{}: {}", filename, err),
-            Ok(_) => {
-                println!("Opened {}", filename);
-                extract_chars("hoge", config.extract.chars.as_slice());
+            Ok(mut f) => {
+                let mut buf = String::new();
+                loop {
+                    let bytes = f.read_line(&mut buf)?;
+                    if bytes == 0 {
+                        break
+                    }
+
+                    if !config.extract.chars.is_empty() {
+                        let s = extract_chars(&buf, &config.extract.chars);
+                        println!("{}", s)
+                    }
+
+                    if !config.extract.bytes.is_empty() {
+                        let s = extract_bytes(&buf, &config.extract.bytes);
+                        println!("{}", s)
+                    }
+
+                    buf.clear();
+                }
             }
         }
     }
@@ -109,6 +126,27 @@ fn extract_chars(line: &str, char_ops: &[Position]) -> String {
         };
         match line.get(start..end) {
             Some(sub) => s += sub,
+            None => panic!("position is out of range"),
+        }
+    }
+    s
+}
+
+fn extract_bytes(line: &str, byte_ops: &[Position]) -> String {
+    let mut s = String::from("");
+    for range in byte_ops {
+        let start = if line.len() > range.0.start {
+            range.0.start
+        } else {
+            line.len()
+        };
+        let end = if line.len() > range.0.end {
+            range.0.end
+        } else {
+            line.len()
+        };
+        match line.as_bytes().get(start..end) {
+            Some(sub) => s += &String::from_utf8_lossy(sub),
             None => panic!("position is out of range"),
         }
     }
@@ -229,5 +267,26 @@ mod unit_tests {
         assert_eq!(extract_chars("ábc", &[Position(2..3), Position(1..2)]), "cb".to_string());
         assert_eq!(extract_chars("ábc", &[Position(0..1), Position(1..2), Position(4..5)]), "áb".to_string());
     }
+
+    #[test]
+    fn test_extract_bytes() {
+        assert_eq!(extract_bytes("ábc", &[Position(0..1)]), "�".to_string());
+        assert_eq!(extract_bytes("ábc", &[Position(0..2)]), "á".to_string());
+        assert_eq!(extract_bytes("ábc", &[Position(0..3)]), "áb".to_string());
+        assert_eq!(extract_bytes("ábc", &[Position(0..4)]), "ábc".to_string());
+        assert_eq!(extract_bytes("ábc", &[Position(3..4), Position(2..3)]), "cb".to_string());
+        assert_eq!(extract_bytes("ábc", &[Position(0..2), Position(5..6)]), "á".to_string());
+    }
+
+    // #[test]
+    // fn test_extract_fields() {
+    //     let rec = StringRecord::from(vec!["Captain", "Sham", "12345"]);
+    //     assert_eq!(extract_fields(&rec, &[0..1]), &["Captain"]);
+    //     assert_eq!(extract_fields(&rec, &[1..2]), &["Sham"]);
+    //     assert_eq!(extract_fields(&rec, &[0..1, 2..3]), &["Captain", "12345"]);
+    //     assert_eq!(extract_fields(&rec, &[0..1, 3..4]), &["Captain"]);
+    //     assert_eq!(extract_fields(&rec, &[0..3]), &["Captain", "Sham", "12345"]);
+    //     assert_eq!(extract_fields(&rec, &[1..2, 0..1]), &["Sham", "Captain"]);
+    // }
 }
 
