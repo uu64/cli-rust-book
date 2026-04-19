@@ -28,12 +28,36 @@ pub fn get_args() -> Result<Config> {
 }
 
 pub fn run(config: Config) -> Result<()> {
-    println!("{:#?}", config);
-    let _ = RegexBuilder::new(&config.pattern)
+    let pat = RegexBuilder::new(&config.pattern)
         .case_insensitive(config.insensitive)
         .build()
         .map_err(|e| anyhow!("Invalid pattern \"{}\": {}", config.pattern, e))?;
-    let _ = find_files(&config.files, config.recursive);
+    for f in find_files(&config.files, config.recursive) {
+        let f = match f {
+            Ok(f) => f,
+            Err(e) => return Err(e),
+        };
+
+        let mut buf = open(&f).unwrap();
+        let results = find_lines(&mut buf, &pat, config.invert_match);
+
+        match results {
+            Ok(results) => {
+                let mut prefix = String::from("");
+                if config.files.len() > 1 || config.recursive {
+                    prefix = format!("{f}:");
+                }
+                if config.count {
+                    println!("{}{}", prefix, results.len());
+                } else {
+                    for result in results {
+                        print!("{prefix}{result}");
+                    }
+                }
+            },
+            Err(e) => return Err(e),
+        }
+    }
     Ok(())
 }
 
@@ -86,15 +110,23 @@ fn find_lines<T: BufRead>(
     invert_match: bool,
 ) -> Result<Vec<String>> {
     let mut lines = Vec::new();
-    for line in file.lines() {
-        let line = match line {
-            Ok(l) => l,
-            Err(e) => return Err(anyhow!(e)),
-        };
+    let mut line = String::new();
+    loop {
+    // for line in file.lines() {
+        let bytes = file.read_line(&mut line)?;
+        // let butes = match bytes {
+        //     Ok(b) => continue,
+        //     Err(e) => return Err(anyhow!(e)),
+        // };
+        if bytes == 0 {
+            break;
+        }
 
         if pattern.is_match(&line) ^ invert_match {
-            lines.push(line);
+            lines.push(line.clone()); // TODO: cloneいる？
         }
+        line.clear();
+    // }
     }
     Ok(lines)
 }
