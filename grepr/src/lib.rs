@@ -1,11 +1,9 @@
-use std::{fs::File, io::{self, BufRead, BufReader}, result::Result::Ok, str::pattern::Pattern};
+use std::{fs::File, io::{self, BufRead, BufReader}, result::Result::Ok};
 
 use anyhow::{Result, anyhow};
 use clap::Parser;
 use regex::{Regex, RegexBuilder};
 use walkdir::WalkDir;
-
-// type MyResult<T> = Result<T, Box<dyn Error>>;
 
 #[derive(Debug, Parser)]
 #[command(version, about, long_about = None)]
@@ -87,7 +85,18 @@ fn find_lines<T: BufRead>(
     pattern: &Regex,
     invert_match: bool,
 ) -> Result<Vec<String>> {
-    unimplemented!()
+    let mut lines = Vec::new();
+    for line in file.lines() {
+        let line = match line {
+            Ok(l) => l,
+            Err(e) => return Err(anyhow!(e)),
+        };
+
+        if pattern.is_match(&line) ^ invert_match {
+            lines.push(line);
+        }
+    }
+    Ok(lines)
 }
 
 #[cfg(test)]
