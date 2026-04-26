@@ -1,4 +1,4 @@
-use std::{fs::File, io::{self, BufRead, BufReader}, result::Result::Ok};
+use std::{fs::File, io::{self, BufRead, BufReader}, path::Path, result::Result::Ok};
 
 use anyhow::{Result, anyhow};
 use clap::Parser;
@@ -24,6 +24,7 @@ pub struct Config {
 
 pub fn get_args() -> Result<Config> {
     let config = Config::parse();
+    // println!("{:#?}", config);
     Ok(config)
 }
 
@@ -35,7 +36,10 @@ pub fn run(config: Config) -> Result<()> {
     for f in find_files(&config.files, config.recursive) {
         let f = match f {
             Ok(f) => f,
-            Err(e) => return Err(e),
+            Err(e) => {
+                eprintln!("{e}");
+                continue;
+            },
         };
 
         let mut buf = open(&f).unwrap();
@@ -70,7 +74,21 @@ fn open(filename: &str) -> Result<Box<dyn BufRead>> {
 
 fn find_files(paths: &[String], recursive: bool) -> Vec<Result<String>> {
     let mut results: Vec<Result<String>> = Vec::new();
+
+    if paths.len() == 1 && paths[0].eq("-") {
+        results.push(Ok(paths[0].clone()));
+        return results;
+    }
+
     for path in paths {
+        if !recursive && Path::new(path).is_dir() {
+            results.push(Err(anyhow!(
+                "{} is a directory",
+                path
+            )));
+            continue;
+        }
+
         for entry in WalkDir::new(path) {
             let dir_entry = match entry {
                 Ok(dir_entry) => dir_entry,
@@ -87,18 +105,10 @@ fn find_files(paths: &[String], recursive: bool) -> Vec<Result<String>> {
                     continue;
                 }
             };
-            if meta.is_dir() {
-                if !recursive {
-                    results.push(Err(anyhow!(
-                        "{} is a directory",
-                        dir_entry.path().display()
-                    )));
-                    return results;
-                }
-                continue;
-            }
 
-            results.push(Ok(format!("{}", dir_entry.path().display())));
+            if !meta.is_dir() {
+                results.push(Ok(format!("{}", dir_entry.path().display())));
+            }
         }
     }
     results
@@ -112,12 +122,7 @@ fn find_lines<T: BufRead>(
     let mut lines = Vec::new();
     let mut line = String::new();
     loop {
-    // for line in file.lines() {
         let bytes = file.read_line(&mut line)?;
-        // let butes = match bytes {
-        //     Ok(b) => continue,
-        //     Err(e) => return Err(anyhow!(e)),
-        // };
         if bytes == 0 {
             break;
         }
@@ -126,7 +131,6 @@ fn find_lines<T: BufRead>(
             lines.push(line.clone()); // TODO: cloneいる？
         }
         line.clear();
-    // }
     }
     Ok(lines)
 }
