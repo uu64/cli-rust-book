@@ -120,17 +120,16 @@ fn find_lines<T: BufRead>(
     invert_match: bool,
 ) -> Result<Vec<String>> {
     let mut lines = Vec::new();
-    let mut line = String::new();
     loop {
+        let mut line = String::new();
         let bytes = file.read_line(&mut line)?;
         if bytes == 0 {
             break;
         }
 
         if pattern.is_match(&line) ^ invert_match {
-            lines.push(line.clone()); // TODO: cloneいる？
+            lines.push(line);
         }
-        line.clear();
     }
     Ok(lines)
 }
